@@ -1,158 +1,175 @@
+# ------------------------------------------------------------------------------
+# 🚀 Advanced Soft-NMS & IoU Toolkit for PyTorch / Ultralytics YOLO
+# ------------------------------------------------------------------------------
+# This module provides a robust, tensor-safe implementation of Soft-NMS along 
+# with a comprehensive suite of advanced Bounding Box Regression metrics 
+# (GIoU, DIoU, CIoU, EIoU, SIoU).
+# ------------------------------------------------------------------------------
+
 import math
 import torch
 
-# ==============================================================================
-# YOLO-GTGP Post-Processing Modules
-# Objective: Advanced bounding box suppression mechanisms tailored for GPR B-scans.
-# Handles highly overlapping hyperbola signatures typical of adjacent geological 
-# anomalies (e.g., clustered karst caves or fracture zones).
-# ==============================================================================
+__all__ = ['bbox_iou_for_nms', 'soft_nms']
 
-def bbox_iou_for_nms(box1, box2, xywh=False, GIoU=False, DIoU=False, CIoU=False, EIoU=False, SIoU=False, ShapeIoU=False, eps=1e-7, scale=0.0):
+def bbox_iou_for_nms(box1, box2, xywh=False, GIoU=False, DIoU=False, CIoU=False, EIoU=False, SIoU=False, eps=1e-7):
     """
-    Calculate Intersection over Union (IoU) and its advanced variants.
-    Provides flexible distance, shape, and angle penalty metrics to accurately 
-    evaluate bounding box overlap during the Non-Maximum Suppression phase.
-    
+    Calculate Intersection over Union (IoU) and various penalized IoUs for NMS processing.
+
     Args:
-        box1 (torch.Tensor): Reference bounding box, shape (1, 4).
-        box2 (torch.Tensor): Target bounding boxes, shape (n, 4).
-        xywh (bool): If True, input format is (center_x, center_y, width, height).
-        GIoU, DIoU, CIoU, EIoU, SIoU, ShapeIoU (bool): Flags to activate specific IoU penalties.
-        eps (float): Small epsilon to prevent division by zero.
-        scale (float): Scale parameter specifically used for ShapeIoU weighting.
-        
+        box1 (torch.Tensor): A single bounding box tensor with shape (1, 4).
+        box2 (torch.Tensor): Multiple bounding boxes tensor with shape (N, 4).
+        xywh (bool): If True, input format is (x_center, y_center, width, height). 
+                     If False, input format is (x1, y1, x2, y2). Default is False.
+        GIoU (bool): Calculate Generalized IoU.
+        DIoU (bool): Calculate Distance IoU.
+        CIoU (bool): Calculate Complete IoU.
+        EIoU (bool): Calculate Efficient IoU.
+        SIoU (bool): Calculate Scylla IoU.
+        eps (float): A small epsilon value to prevent division by zero.
+
     Returns:
-        (torch.Tensor): Computed IoU variant scores.
+        (torch.Tensor): Calculated IoU array of shape (N,) applying the specified penalties.
     """
-    # 1. Coordinate Transformation
+    # Transform coordinates to (x1, y1, x2, y2) format
     if xywh:
-        # Convert (cx, cy, w, h) to (x1, y1, x2, y2)
         (x1, y1, w1, h1), (x2, y2, w2, h2) = box1.chunk(4, -1), box2.chunk(4, -1)
         w1_, h1_, w2_, h2_ = w1 / 2, h1 / 2, w2 / 2, h2 / 2
         b1_x1, b1_x2, b1_y1, b1_y2 = x1 - w1_, x1 + w1_, y1 - h1_, y1 + h1_
         b2_x1, b2_x2, b2_y1, b2_y2 = x2 - w2_, x2 + w2_, y2 - h2_, y2 + h2_
     else:
-        # Input is already (x1, y1, x2, y2)
         b1_x1, b1_y1, b1_x2, b1_y2 = box1.chunk(4, -1)
         b2_x1, b2_y1, b2_x2, b2_y2 = box2.chunk(4, -1)
         w1, h1 = b1_x2 - b1_x1, b1_y2 - b1_y1 + eps
         w2, h2 = b2_x2 - b2_x1, b2_y2 - b2_y1 + eps
 
-    # 2. Basic IoU Calculation
-    # Intersection area
-    inter = (b1_x2.minimum(b2_x2) - b1_x1.maximum(b2_x1)).clamp_(0) * (b1_y2.minimum(b2_y2) - b1_y1.maximum(b2_y1)).clamp_(0)
-    # Union area
+    # Calculate Intersection Area
+    inter = (b1_x2.minimum(b2_x2) - b1_x1.maximum(b2_x1)).clamp_(0) * \
+            (b1_y2.minimum(b2_y2) - b1_y1.maximum(b2_y1)).clamp_(0)
+
+    # Calculate Union Area
     union = w1 * h1 + w2 * h2 - inter + eps
+
+    # Standard IoU
     iou = inter / union
 
-    # 3. Advanced IoU Penalty Calculations
-    if CIoU or DIoU or GIoU or EIoU or SIoU or ShapeIoU:
-        # Dimensions of the smallest enclosing convex box
-        cw = b1_x2.maximum(b2_x2) - b1_x1.minimum(b2_x1)
-        ch = b1_y2.maximum(b2_y2) - b1_y1.minimum(b2_y1)
+    # Calculate Advanced Penalities
+    if CIoU or DIoU or GIoU or EIoU or SIoU:
+        cw = b1_x2.maximum(b2_x2) - b1_x1.minimum(b2_x1)  # Convex width
+        ch = b1_y2.maximum(b2_y2) - b1_y1.minimum(b2_y1)  # Convex height
         
         if CIoU or DIoU or EIoU or SIoU:
-            c2 = cw ** 2 + ch ** 2 + eps  # Squared diagonal of the convex box
-            # Squared distance between center points
-            rho2 = ((b2_x1 + b2_x2 - b1_x1 - b1_x2) ** 2 + (b2_y1 + b2_y2 - b1_y1 - b1_y2) ** 2) / 4
+            c2 = cw ** 2 + ch ** 2 + eps  # Convex diagonal squared
+            rho2 = ((b2_x1 + b2_x2 - b1_x1 - b1_x2) ** 2 + (b2_y1 + b2_y2 - b1_y1 - b1_y2) ** 2) / 4  # Center distance squared
             
             if CIoU:
-                # Complete IoU: Adds aspect ratio penalty
                 v = (4 / math.pi ** 2) * (torch.atan(w2 / h2) - torch.atan(w1 / h1)).pow(2)
-                with torch.no_grad(): 
+                with torch.no_grad():
                     alpha = v / (v - iou + (1 + eps))
                 return iou - (rho2 / c2 + v * alpha)
-                
             elif EIoU:
-                # Efficient IoU: Penalizes width and height differences separately
-                rho_w2, rho_h2 = ((b2_x2 - b2_x1) - (b1_x2 - b1_x1)) ** 2, ((b2_y2 - b2_y1) - (b1_y2 - b1_y1)) ** 2
-                return iou - (rho2 / c2 + rho_w2 / (cw ** 2 + eps) + rho_h2 / (ch ** 2 + eps))
-                
+                rho_w2 = ((b2_x2 - b2_x1) - (b1_x2 - b1_x1)) ** 2
+                rho_h2 = ((b2_y2 - b2_y1) - (b1_y2 - b1_y1)) ** 2
+                cw2 = cw ** 2 + eps
+                ch2 = ch ** 2 + eps
+                return iou - (rho2 / c2 + rho_w2 / cw2 + rho_h2 / ch2)
             elif SIoU:
-                # SCYLLA-IoU: Introduces angle cost to aid faster convergence
-                s_cw, s_ch = (b2_x1 + b2_x2 - b1_x1 - b1_x2) * 0.5 + eps, (b2_y1 + b2_y2 - b1_y1 - b1_y2) * 0.5 + eps
-                sigma = torch.pow(s_cw ** 2 + s_ch ** 2, 0.5)
-                sin_alpha = torch.where(torch.abs(s_cw) / sigma > pow(2, 0.5) / 2, torch.abs(s_ch) / sigma, torch.abs(s_cw) / sigma)
-                gamma = torch.cos(torch.arcsin(sin_alpha) * 2 - math.pi / 2) - 2
-                distance_cost = 2 - torch.exp(gamma * (s_cw / cw) ** 2) - torch.exp(gamma * (s_ch / ch) ** 2)
-                shape_cost = torch.pow(1 - torch.exp(-torch.abs(w1 - w2) / torch.max(w1, w2)), 4) + torch.pow(1 - torch.exp(-torch.abs(h1 - h2) / torch.max(h1, h2)), 4)
+                s_cw = (b2_x1 + b2_x2 - b1_x1 - b1_x2) * 0.5 + eps
+                s_ch = (b2_y1 + b2_y2 - b1_y1 - b1_y2) * 0.5 + eps
+                sigma_val = torch.pow(s_cw ** 2 + s_ch ** 2, 0.5)
+                sin_alpha_1 = torch.abs(s_cw) / sigma_val
+                sin_alpha_2 = torch.abs(s_ch) / sigma_val
+                threshold = pow(2, 0.5) / 2
+                sin_alpha = torch.where(sin_alpha_1 > threshold, sin_alpha_2, sin_alpha_1)
+                angle_cost = torch.cos(torch.arcsin(sin_alpha) * 2 - math.pi / 2)
+                rho_x = (s_cw / cw) ** 2
+                rho_y = (s_ch / ch) ** 2
+                gamma = angle_cost - 2
+                distance_cost = 2 - torch.exp(gamma * rho_x) - torch.exp(gamma * rho_y)
+                omiga_w = torch.abs(w1 - w2) / torch.max(w1, w2)
+                omiga_h = torch.abs(h1 - h2) / torch.max(h1, h2)
+                shape_cost = torch.pow(1 - torch.exp(-1 * omiga_w), 4) + torch.pow(1 - torch.exp(-1 * omiga_h), 4)
                 return iou - 0.5 * (distance_cost + shape_cost) + eps
-                
-            elif ShapeIoU:
-                # Shape-IoU: Focuses on shape and scale consistency
-                ww = 2 * torch.pow(w2, scale) / (torch.pow(w2, scale) + torch.pow(h2, scale))
-                hh = 2 * torch.pow(h2, scale) / (torch.pow(w2, scale) + torch.pow(h2, scale))
-                distance = (hh * (((b2_x1 + b2_x2 - b1_x1 - b1_x2) ** 2) / 4) + ww * (((b2_y1 + b2_y2 - b1_y1 - b1_y2) ** 2) / 4)) / (cw ** 2 + ch ** 2 + eps)
-                shape_cost = torch.pow(1 - torch.exp(-hh * torch.abs(w1 - w2) / torch.max(w1, w2)), 4) + torch.pow(1 - torch.exp(-ww * torch.abs(h1 - h2) / torch.max(h1, h2)), 4)
-                return iou - distance - 0.5 * shape_cost
-                
-            return iou - rho2 / c2  # Default to Distance IoU (DIoU)
             
-        # Generalized IoU (GIoU)
-        return iou - (cw * ch + eps - union) / (cw * ch + eps)
+            return iou - rho2 / c2  # DIoU
         
-    return iou  # Return standard IoU if no variants are selected
+        c_area = cw * ch + eps
+        return iou - (c_area - union) / c_area  # GIoU
+        
+    return iou
 
 
-def soft_nms(bboxes, scores, iou_thresh=0.5, sigma=0.5, score_threshold=0.001):
+def soft_nms(bboxes, scores, iou_thresh=0.45, sigma=0.5, score_threshold=0.25):
     """
-    Soft-NMS (Soft Non-Maximum Suppression) algorithm.
+    Robust, tensor-safe implementation of Soft Non-Maximum Suppression.
     
-    Objective for GPR: In tunnel prediction, adjacent geological anomalies 
-    often generate highly overlapping hyperbola signatures. Hard NMS would 
-    falsely suppress these valid neighboring targets. Soft-NMS exponentially 
-    decays the confidence score of overlapping boxes based on a Gaussian 
-    function, improving the Recall rate for dense anomaly clusters.
-    
+    This function avoids index misalignment issues common in naive PyTorch 
+    implementations by executing global in-place score updates followed 
+    by global re-sorting at each iteration.
+
     Args:
-        bboxes (torch.Tensor): Predicted bounding boxes, shape (N, 4).
-        scores (torch.Tensor): Corresponding confidence scores, shape (N,).
-        iou_thresh (float): IoU threshold to trigger score decay.
-        sigma (float): Variance of the Gaussian penalty function.
-        score_threshold (float): Minimum score to retain a bounding box.
-        
+        bboxes (torch.Tensor): Bounding boxes tensor of shape (N, 4).
+        scores (torch.Tensor): Confidence scores tensor of shape (N,).
+        iou_thresh (float): The IoU threshold where the Gaussian penalty is triggered. 
+                            Default is 0.45.
+        sigma (float): The variance of the Gaussian penalty function. 
+                       Default is 0.5.
+        score_threshold (float): The minimum score required to keep a box. 
+                                 Default is 0.25.
+
     Returns:
-        (torch.LongTensor): Indices of the retained bounding boxes.
+        (torch.LongTensor): The indices of the bounding boxes to keep.
     """
-    # Initialize a list of indices representing the current active boxes
-    order = torch.arange(0, scores.size(0)).to(bboxes.device)
+    if bboxes.numel() == 0:
+        return torch.empty((0,), dtype=torch.int64, device=bboxes.device)
+
+    # Clone scores to prevent destructive in-place modifications on original data
+    scores = scores.clone()
     keep = []
     
+    # Initial descending sort
+    order = torch.argsort(scores, descending=True)
+
     while order.numel() > 0:
-        # If only one box remains, add it and terminate
+        # 1. Pop the index with the maximum score
+        i = order[0].item()
+        keep.append(i)
+
         if order.numel() == 1:
-            keep.append(order[0].item())
             break
+
+        # 2. Extract remaining indices
+        remaining_indices = order[1:]
+
+        # 3. Calculate standard IoU (STRICTLY STANDARD IoU for Gaussian penalty stability)
+        ious = bbox_iou_for_nms(
+            bboxes[i].unsqueeze(0), 
+            bboxes[remaining_indices], 
+            GIoU=False, DIoU=False, CIoU=False, EIoU=False, SIoU=False
+        ).view(-1)
+
+        # 4. Identify boxes exceeding the overlap threshold
+        overlap_mask = ious > iou_thresh
+
+        if overlap_mask.any():
+            # Get relative and absolute indices of penalized boxes
+            penalize_idx = overlap_mask.nonzero(as_tuple=False).squeeze(-1)
+            real_penalize_idx = remaining_indices[penalize_idx]
+            penalize_ious = ious[penalize_idx]
             
-        # The box with the highest score is at index 0
-        i = order[0]
-        keep.append(i.item())
-        
-        # Calculate IoU between the max-score box and all remaining boxes
-        # (Defaults to standard IoU here, but can be switched to SIoU/ShapeIoU if configured)
-        iou = bbox_iou_for_nms(bboxes[i:i+1], bboxes[order[1:]]).squeeze()
-        
-        # Identify boxes that exceed the overlap threshold
-        idx = (iou > iou_thresh).nonzero().squeeze()
-        
-        if idx.numel() > 0: 
-            # Apply Gaussian decay penalty to highly overlapping boxes
-            decay_penalty = torch.exp(-torch.pow(iou[idx], 2) / sigma)
-            scores[order[idx + 1]] *= decay_penalty
-        
-        # Filter out boxes whose scores have decayed below the required threshold
-        valid_mask = (scores[order[1:]] > score_threshold).nonzero().squeeze() 
-        if valid_mask.numel() == 0: 
-            break  # Stop if no boxes meet the threshold
-            
-        # Re-sort: Find the index of the new highest scoring box among the remaining
-        max_score_idx = torch.argmax(scores[order[valid_mask + 1]]) 
-        if max_score_idx != 0: 
-            # Swap it to the front of the valid_mask array
-            valid_mask[[0, max_score_idx]] = valid_mask[[max_score_idx, 0]]
-            
-        # Update the active order array for the next iteration
-        order = order[valid_mask + 1]
-    
-    return torch.LongTensor(keep).to(bboxes.device)
+            # Apply Gaussian decay: e^(-IoU^2 / sigma)
+            weight = torch.exp(-(penalize_ious ** 2) / sigma)
+            scores[real_penalize_idx] *= weight
+
+        # 5. Prune boxes that fall below the score threshold
+        survivors_mask = scores[remaining_indices] > score_threshold
+        survivors_indices = remaining_indices[survivors_mask]
+
+        if survivors_indices.numel() == 0:
+            break
+
+        # 6. Re-sort remaining survivors to guarantee the highest score is picked next
+        survivors_scores = scores[survivors_indices]
+        new_sort_idx = torch.argsort(survivors_scores, descending=True)
+        order = survivors_indices[new_sort_idx]
+
+    return torch.tensor(keep, dtype=torch.int64, device=bboxes.device)
