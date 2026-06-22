@@ -1,6 +1,6 @@
 ---
 
-# YOLO-GTGP: Ground Penetrating Radar Tunnel Geological Prediction#
+# YOLO-GTGP: Ground Penetrating Radar Tunnel Geological Prediction #
 
 This repository contains the official implementation, dataset split, and pretrained weights for the paper:
 
