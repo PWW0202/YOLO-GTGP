@@ -19,6 +19,8 @@ https://drive.google.com/file/d/1FAVRP-pKhP9bsaiUZW572mybUQleJcpf/view?usp=drive
 
 ## Environment Setup & Custom Module Integration
 
+Follow the steps below to integrate the custom network modules into the Ultralytics YOLO framework.
+
 ### 1. Environment Download and Preparation
 
 Please visit the official Ultralytics GitHub repository to download the source code of **v8.3.0 or later**:
@@ -85,4 +87,43 @@ Inside the `parse_model` function, locate the `if` branch with `args.insert(2, n
 if m in (..., GhostRepLite, DualPath_CNNTransformer):
     args.insert(2, n)
     n = 1
+```
+
+## Custom Soft-NMS Integration ##
+
+This section describes how to replace the native NMS with the provided enhanced Soft-NMS implementation that supports multiple IoU metrics.
+
+### 1. Add the Soft-NMS Module ### 
+
+Place the `gtgp_nms.py` file into the following directory of the Ultralytics project:
+
+```
+ultralytics/utils/
+```
+
+### 2. Replace Native NMS ### 
+
+In the inference or evaluation script (e.g., `ultralytics/utils/ops.py`), locate the `non_max_suppression` function, and replace the native NMS call with the custom Soft-NMS.
+
+Original native NMS code:
+
+```python
+import torch
+i = torchvision.ops.nms(boxes, scores, iou_thres)
+```
+
+Replace with the enhanced Soft-NMS:
+
+import torch
+from ultralytics.utils.gtgp_nms import soft_nms
+
+```python
+i = soft_nms(
+    bboxes=boxes,
+    scores=scores,
+    iou_thresh=0.45,        # IoU threshold for triggering Gaussian penalty
+    sigma=0.5,              # Variance of the Gaussian penalty function
+    score_threshold=0.25,   # Minimum confidence score to retain a bounding box
+    iou_type='eiou'         # Supported metrics: iou / giou / diou / ciou / eiou / siou
+)
 ```
