@@ -109,15 +109,18 @@ Original native NMS code:
 
 ```python
 import torch
+...
+
 i = torchvision.ops.nms(boxes, scores, iou_thres)
 ```
 
 Replace with the enhanced Soft-NMS:
 
+```python
 import torch
 from ultralytics.utils.gtgp_nms import soft_nms
+...
 
-```python
 i = soft_nms(
     bboxes=boxes,
     scores=scores,
