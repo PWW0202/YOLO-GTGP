@@ -20,7 +20,7 @@ To independently verify our reported results, please download the necessary reso
 * **Description:** Contains the test split of the simulated GPR dataset with corresponding annotations.
 * **Usage:** Extract the dataset and place it in the `datasets/` directory of your project root.
 
-> **Data Availability Statement:** > The simulated dataset utilized in this study is available from the corresponding author upon reasonable request for non-commercial academic purposes. However, the field-measured datasets involve proprietary engineering data and sensitive geological information from an actual tunnel project currently under construction. Due to strict confidentiality agreements with the collaborating engineering entities, the field data cannot be made publicly available at this time.
+> **Data Availability Statement:** The simulated dataset utilized in this study is available from the corresponding author upon reasonable request for non-commercial academic purposes. However, the field-measured datasets involve proprietary engineering data and sensitive geological information from an actual tunnel project currently under construction. Due to strict confidentiality agreements with the collaborating engineering entities, the field data cannot be made publicly available at this time.
 
 ### Pretrained Weights (.pt)
 
@@ -39,7 +39,7 @@ Follow the steps below to integrate our custom network modules into the Ultralyt
 Download the source code of **v8.3.0 or later** from the official repository and install requirements:
 
 ```bash
-git clone https://github.com/ultralytics/ultralytics.git
+git clone [https://github.com/ultralytics/ultralytics.git](https://github.com/ultralytics/ultralytics.git)
 cd ultralytics
 pip install -r requirements.txt
 
@@ -148,9 +148,9 @@ from ultralytics.utils.gtgp_nms import soft_nms
 i = soft_nms(
     bboxes=boxes,
     scores=scores,
-    iou_thresh=0.45,       
-    sigma=0.5,             
-    score_threshold=0.25,  
+    iou_thresh=0.45,
+    sigma=0.5,
+    score_threshold=0.25,
     iou_type='eiou'         # Supported metrics: iou / giou / diou / ciou / eiou / siou
 )
 
