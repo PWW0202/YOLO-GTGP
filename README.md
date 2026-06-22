@@ -4,9 +4,12 @@ project for Unfavorable geological anomalies identification and location of Tunn
 Cheng Chen, Xiao Tao, Shuang Luo, Deshan Feng, Li He, Wenxiu Yan, Weiliang Cao, Xun Wang,"Unfavorable geological anomalies identification and location of Tunnel Geological Prediction for ground penetrating radar based on YOLO-GTGP," Underground Space
 
 # dataset
-https://drive.google.com/file/d/15EmmMNdbmOEIo0oFNTRMXhUTe5P5ZkTb/view?usp=sharing
+https://drive.google.com/file/d/1GKYdNMy1Z8kZSNu_j_yn0UWIDfd4SXSq/view?usp=drive_link
 **Data Availability Statement:**
 The simulated dataset utilized in this study is available from the corresponding author upon reasonable request for non-commercial academic purposes. However, the field-measured datasets involve proprietary engineering data and sensitive geological information from an actual tunnel project currently under construction. Due to strict confidentiality agreements with the collaborating engineering entities, the field data cannot be made publicly available at this time.
+
+# .pt
+https://drive.google.com/file/d/1FAVRP-pKhP9bsaiUZW572mybUQleJcpf/view?usp=drive_link
 
 # Environment Integration (Crucial Step):
 Step 1: Add the Source FileCreate a new file named gpgt_block.py inside the ultralytics/nn/modules/ directory of your Ultralytics installation and paste the provided code into it.  Next, expose these classes by adding them to ultralytics/nn/modules/__init__.py:Python# Inside ultralytics/nn/modules/__init__.py
