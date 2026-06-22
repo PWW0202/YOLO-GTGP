@@ -1,0 +1,15 @@
+# dataset path
+path: ./dataset
+train: images/train  # path + train
+val: images/val # path + val
+test: images/test # path + test
+
+# number of classes
+nc: 4
+
+# class names
+names: ['K-W','K-A','W','J']
+#K-W: water filled karst cave
+#K-A: air filled karst cave
+#W: water rich zone
+#J: joint fissure

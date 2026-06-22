@@ -6,15 +6,13 @@ from ultralytics import YOLO
 
 def main():
     # Load the optimal YOLO-GTGP weights obtained from training
-    print("Loading Trained YOLO-GTGP Weights for Inference...")
     model = YOLO("runs/train/YOLO-GTGP-Train/weights/best.pt")
 
     # Define the source directory containing unlabelled GPR B-scan images.
     # Note: Ensure these images are preprocessed from the original DZT files.
     source_path = "data/dataset/images/test"
 
-    # Perform inference on the GPR profiles
-    print("Running Inference on GPR Profiles...")
+    # Perform inference on the GPR profiles    
     results = model.predict(
         source=source_path,
         conf=0.25,                   
