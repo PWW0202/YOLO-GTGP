@@ -49,7 +49,7 @@ Add the following line to the import section at the top of the file:
 from .gtgp_blocks import GhostRepLite, DualPath_CNNTransformer
 ```
 
-#### Update the `__all__` list
+#### Update the `__all__` list in ultralytics/nn/modules/__init__.py
 
 Append the following entries to the `__all__` tuple at the end of the file:
 
