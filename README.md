@@ -1,132 +1,159 @@
+---
+
 # YOLO-GTGP: Ground Penetrating Radar Tunnel Geological Prediction
 
-Project for Unfavorable geological anomalies identification and location of Tunnel Geological Prediction for ground penetrating radar based on YOLO-GTGP
+This repository contains the official implementation, dataset split, and pretrained weights for the paper:
 
-Cheng Chen, Xiao Tao, Shuang Luo, Deshan Feng, Li He, Wenxiu Yan, Weiliang Cao, Xun Wang, "Unfavorable geological anomalies identification and location of Tunnel Geological Prediction for ground penetrating radar based on YOLO-GTGP," *Underground Space*
+**"Unfavorable geological anomalies identification and location of Tunnel Geological Prediction for ground penetrating radar based on YOLO-GTGP"** submitted to *Underground Space*.
 
-## Dataset
-
-https://drive.google.com/file/d/1GKYdNMy1Z8kZSNu_j_yn0UWIDfd4SXSq/view?usp=drive_link
-
-**Data Availability Statement:**
-The simulated dataset utilized in this study is available from the corresponding author upon reasonable request for non-commercial academic purposes. However, the field-measured datasets involve proprietary engineering data and sensitive geological information from an actual tunnel project currently under construction. Due to strict confidentiality agreements with the collaborating engineering entities, the field data cannot be made publicly available at this time.
-
-## Pretrained Weights (.pt)
-
-https://drive.google.com/file/d/1FAVRP-pKhP9bsaiUZW572mybUQleJcpf/view?usp=drive_link
+**Authors:** Cheng Chen, Xiao Tao, Shuang Luo, Deshan Feng, Li He, Wenxiu Yan, Weiliang Cao, Xun Wang
 
 ---
 
-## Environment Setup & Custom Module Integration
+## 1. Data and Weights Download
 
-Follow the steps below to integrate the custom network modules into the Ultralytics YOLO framework.
+To independently verify our reported results, please download the necessary resources below:
 
-### 1. Environment Download and Preparation
+### Dataset
 
-Please visit the official Ultralytics GitHub repository to download the source code of **v8.3.0 or later**:
+* **Download Link:** [Google Drive Link to Dataset](https://drive.google.com/file/d/1GKYdNMy1Z8kZSNu_j_yn0UWIDfd4SXSq/view?usp=drive_link)
+* **Description:** Contains the test split of the simulated GPR dataset with corresponding annotations.
+* **Usage:** Extract the dataset and place it in the `datasets/` directory of your project root.
+
+> **Data Availability Statement:** > The simulated dataset utilized in this study is available from the corresponding author upon reasonable request for non-commercial academic purposes. However, the field-measured datasets involve proprietary engineering data and sensitive geological information from an actual tunnel project currently under construction. Due to strict confidentiality agreements with the collaborating engineering entities, the field data cannot be made publicly available at this time.
+
+### Pretrained Weights (.pt)
+
+* **Download Link:** [Google Drive Link to Weights](https://drive.google.com/file/d/1FAVRP-pKhP9bsaiUZW572mybUQleJcpf/view?usp=drive_link)
+* **Description:** Includes the trained model weights for the full YOLO-GTGP model and its ablation variants.
+* **Usage:** Place the `.pt` files directly into the `weights/` directory.
+
+---
+
+## 2. Environment Setup & Custom Module Integration
+
+Follow the steps below to integrate our custom network modules into the Ultralytics YOLO framework.
+
+### Step 2.1: Clone Ultralytics YOLO
+
+Download the source code of **v8.3.0 or later** from the official repository and install requirements:
+
+```bash
+git clone https://github.com/ultralytics/ultralytics.git
+cd ultralytics
+pip install -r requirements.txt
 
 ```
-https://github.com/ultralytics/ultralytics.git
-```
 
-### 2. Add Custom Module File
+### Step 2.2: Add Custom Module Files
 
-Place the `gtgp_blocks.py` file (containing all component implementations) directly into the following directory:
+Place the provided `gtgp_blocks.py` file (containing `GhostRepLite` and `DualPath_CNNTransformer`) directly into the following directory:
 
-```
-ultralytics/nn/modules/
-```
+`ultralytics/nn/modules/`
 
-### 3. Module Registration and Global Exposure
+### Step 2.3: Register Modules Globally
 
-To enable the YOLO framework to globally recognize and invoke the newly added modules, modify `ultralytics/nn/modules/__init__.py` as follows:
+Modify the `ultralytics/nn/modules/__init__.py` file to expose the new modules globally.
 
-#### Import modules
-
-Add the following line to the import section at the top of the file:
+**Import modules:** Add this line at the top of the file:
 
 ```python
 from .gtgp_blocks import GhostRepLite, DualPath_CNNTransformer
+
 ```
 
-#### Update the `__all__` list in `ultralytics/nn/modules/__init__.py`
-
-Append the following entries to the `__all__` tuple at the end of the file:
+**Update the `__all__` list:** Append the module names to the `__all__` tuple at the bottom of the file:
 
 ```python
-"GhostRepLite",
-"DualPath_CNNTransformer",
+__all__ = (
+    # ... existing modules
+    "GhostRepLite",
+    "DualPath_CNNTransformer",
+)
+
 ```
 
-### 4. Parser Logic Adaptation
+### Step 2.4: Adapt Parser Logic
 
-To ensure the model configuration file can correctly parse custom modules, modify the `parse_model` function in `ultralytics/nn/tasks.py`:
+Modify the `parse_model` function in `ultralytics/nn/tasks.py` so the custom YAML configuration file can be parsed correctly.
 
-#### Import modules
-
-Add the following line at the top of `ultralytics/nn/tasks.py`:
+**Import modules:** Add this line at the top of `tasks.py`:
 
 ```python
 from ultralytics.nn.modules.gtgp_blocks import GhostRepLite, DualPath_CNNTransformer
+
 ```
 
-#### Configure channel parsing logic
-
-Inside the `parse_model` function, locate the `if` conditional statement that includes `Classify, Conv, ...`, then add the custom modules to the condition:
+**Configure channel parsing:** Locate the large `if m in (...)` block inside the `parse_model` function and append our custom modules:
 
 ```python
-if m in (..., GhostRepLite, DualPath_CNNTransformer):
+if m in (
+    Classify,
+    Conv,
+    # ... existing modules
+    GhostRepLite, 
+    DualPath_CNNTransformer
+):
     c1, c2 = ch[f], args[0]
+
 ```
 
-#### Configure module depth (Repeats) parsing logic
-
-Inside the `parse_model` function, locate the `if` branch with `args.insert(2, n)`, then add the custom modules to the condition:
+**Configure module depth (Repeats):** Locate the depth parsing branch further down in the same function and append our custom modules:
 
 ```python
-if m in (..., GhostRepLite, DualPath_CNNTransformer):
+if m in (
+    C2f,
+    C2fAttn,
+    # ... existing modules
+    GhostRepLite, 
+    DualPath_CNNTransformer
+):
     args.insert(2, n)
     n = 1
-```
-
-## Custom Soft-NMS Integration ##
-
-This section describes how to replace the native NMS with the provided enhanced Soft-NMS implementation that supports multiple IoU metrics.
-
-### 1. Add the Soft-NMS Module ### 
-
-Place the `gtgp_nms.py` file into the following directory of the Ultralytics project:
 
 ```
-ultralytics/utils/
-```
 
-### 2. Replace Native NMS ### 
+---
 
-In the inference or evaluation script (e.g., `ultralytics/utils/ops.py`), locate the `non_max_suppression` function, and replace the native NMS call with the custom Soft-NMS.
+## 3. Custom Soft-NMS Integration
 
-Original native NMS code:
+To replace the native NMS with our enhanced Soft-NMS (supporting multiple IoU metrics), follow these instructions:
+
+### Step 3.1: Add the Soft-NMS File
+
+Place the provided `gtgp_nms.py` file directly into the following directory:
+
+`ultralytics/utils/`
+
+### Step 3.2: Replace Native NMS in Code
+
+Open `ultralytics/utils/ops.py`, locate the `non_max_suppression` function, and swap the native NMS call with our custom implementation.
+
+**Original Code:**
 
 ```python
-import torch
-...
+import torchvision
 
+# ...
 i = torchvision.ops.nms(boxes, scores, iou_thres)
+
 ```
 
-Replace with the enhanced Soft-NMS:
+**Replace with:**
 
 ```python
-import torch
 from ultralytics.utils.gtgp_nms import soft_nms
-...
 
+# ...
 i = soft_nms(
     bboxes=boxes,
     scores=scores,
-    iou_thresh=0.45,        # IoU threshold for triggering Gaussian penalty
-    sigma=0.5,              # Variance of the Gaussian penalty function
-    score_threshold=0.25,   # Minimum confidence score to retain a bounding box
+    iou_thresh=0.45,       
+    sigma=0.5,             
+    score_threshold=0.25,  
     iou_type='eiou'         # Supported metrics: iou / giou / diou / ciou / eiou / siou
 )
+
 ```
+
+---
