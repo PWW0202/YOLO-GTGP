@@ -49,7 +49,7 @@ Add the following line to the import section at the top of the file:
 from .gtgp_blocks import GhostRepLite, DualPath_CNNTransformer
 ```
 
-#### Update the `__all__` list in ultralytics/nn/modules/__init__.py
+#### Update the `__all__` list in `ultralytics/nn/modules/__init__.py`
 
 Append the following entries to the `__all__` tuple at the end of the file:
 
@@ -64,7 +64,7 @@ To ensure the model configuration file can correctly parse custom modules, modif
 
 #### Import modules
 
-Add the following line at the top of `tasks.py`:
+Add the following line at the top of `ultralytics/nn/tasks.py`:
 
 ```python
 from ultralytics.nn.modules.gtgp_blocks import GhostRepLite, DualPath_CNNTransformer
