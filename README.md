@@ -1,14 +1,3 @@
----
-
-# YOLO-GTGP: Ground Penetrating Radar Tunnel Geological Prediction
-
-This repository contains the official implementation, dataset split, and pretrained weights for the paper:
-
-**"Unfavorable geological anomalies identification and location of Tunnel Geological Prediction for ground penetrating radar based on YOLO-GTGP"** submitted to *Underground Space*.
-
-**Authors:** Cheng Chen, Xiao Tao, Shuang Luo, Deshan Feng, Li He, Wenxiu Yan, Weiliang Cao, Xun Wang
-
----
 
 ## 1. Data and Weights Download
 
