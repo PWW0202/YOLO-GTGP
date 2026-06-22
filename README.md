@@ -11,32 +11,46 @@ The simulated dataset utilized in this study is available from the corresponding
 # .pt
 https://drive.google.com/file/d/1FAVRP-pKhP9bsaiUZW572mybUQleJcpf/view?usp=drive_link
 
-# Environment Integration (Crucial Step):
-Step 1: Add the Source FileCreate a new file named gpgt_block.py inside the ultralytics/nn/modules/ directory of your Ultralytics installation and paste the provided code into it.  Next, expose these classes by adding them to ultralytics/nn/modules/__init__.py:Python# Inside ultralytics/nn/modules/__init__.py
-from .gpgt_block import GhostRepLite, DualPath_CNNTransformer
+# Integration Guide: YOLO-GTGP Custom Modules
+To integrate the GhostRepLite and DualPath_CNNTransformer modules into your Ultralytics YOLO (v8.3.0+) project, please follow these steps:
 
-__all__ = (
-    # ... existing modules ...
-    "GhostRepLite",
-    "DualPath_CNNTransformer",
-)
-Step 2: Register Modules in the YOLO ParserYOLO builds its models dynamically from YAML files using a parser. You must tell the parser how to read your new blocks.Open ultralytics/nn/tasks.py and locate the parse_model function.Import your blocks at the top of the file:Pythonfrom ultralytics.nn.modules.gpgt_block import GhostRepLite, DualPath_CNNTransformer
-2. **Add them to the parsing loop:** Scroll down inside `parse_model` to where the standard modules (like `C2f`, `Bottleneck`) are evaluated, and add your modules:
+1. Environment Setup
+Clone the official Ultralytics repository and install it in editable mode:
 
-   ```python
-   # Inside the `for i, (f, n, m, args) in enumerate(d["backbone"] + d["head"]):` loop in tasks.py
-   
-   if m in (Classify, Conv, ConvTranspose, GhostConv, Bottleneck, GhostBottleneck, SPP, SPPF, DWConv, Focus,
-            BottleneckCSP, C1, C2, C2f, C3, C3TR, C3Ghost, nn.ConvTranspose2d, DWConvTranspose2d, C3x, RepC3,
-            GhostRepLite, DualPath_CNNTransformer): # <--- ADD YOUR BLOCKS HERE
-       c1, c2 = ch[f], args[0]
-       if c2 != no:  # if not output
-           c2 = make_divisible(c2 * gw, 8)
+Bash
+git clone https://github.com/ultralytics/ultralytics.git
+cd ultralytics
+pip install -e .
+2. Add Custom Module File
+Place the gpgt_blocks.py file containing the module implementations directly into the ultralytics/nn/modules/ directory.
 
-       args = [c1, c2, *args[1:]]
-       
-       # Handle the specific depth multiplier (n) for your blocks
-       if m in (BottleneckCSP, C1, C2, C2f, C3, C3TR, C3Ghost, C3x, RepC3, 
-                GhostRepLite, DualPath_CNNTransformer): # <--- ADD YOUR BLOCKS HERE
-           args.insert(2, n)  # number of repeats
-           n = 1
+3. Module Registration
+To ensure the YOLO framework recognizes the new modules, modify ultralytics/nn/modules/__init__.py:
+
+Import the modules: Add the following line to the top of the file:
+
+Python
+from .gpgt_blocks import GhostRepLite, DualPath_CNNTransformer
+Update __all__: Add the module names to the __all__ tuple at the end of the file:
+
+Python
+"GhostRepLite",
+"DualPath_CNNTransformer",
+4. Update Model Parser
+To enable the model configuration files to parse these modules correctly, update ultralytics/nn/tasks.py:
+
+Import the modules: Add to the top of the file:
+
+Python
+from ultralytics.nn.modules.gpgt_blocks import GhostRepLite, DualPath_CNNTransformer
+Channel Parsing: In the parse_model function, locate the if statement containing Classify, Conv, ... and add your modules:
+
+Python
+if m in (..., GhostRepLite, DualPath_CNNTransformer):
+    c1, c2 = ch[f], args[0]
+Depth (Repeats) Parsing: In the same function, locate the if branch containing args.insert(2, n) and add your modules:
+
+Python
+if m in (..., GhostRepLite, DualPath_CNNTransformer):
+    args.insert(2, n)
+    n = 1
