@@ -31,7 +31,7 @@ https://github.com/ultralytics/ultralytics.git
 
 ### 2. Add Custom Module File
 
-Place the `gpgt_blocks.py` file (containing all component implementations) directly into the following directory:
+Place the `gtgp_blocks.py` file (containing all component implementations) directly into the following directory:
 
 ```
 ultralytics/nn/modules/
@@ -46,7 +46,7 @@ To enable the YOLO framework to globally recognize and invoke the newly added mo
 Add the following line to the import section at the top of the file:
 
 ```python
-from .gpgt_blocks import GhostRepLite, DualPath_CNNTransformer
+from .gtgp_blocks import GhostRepLite, DualPath_CNNTransformer
 ```
 
 #### Update the `__all__` list
@@ -67,7 +67,7 @@ To ensure the model configuration file can correctly parse custom modules, modif
 Add the following line at the top of `tasks.py`:
 
 ```python
-from ultralytics.nn.modules.gpgt_blocks import GhostRepLite, DualPath_CNNTransformer
+from ultralytics.nn.modules.gtgp_blocks import GhostRepLite, DualPath_CNNTransformer
 ```
 
 #### Configure channel parsing logic
